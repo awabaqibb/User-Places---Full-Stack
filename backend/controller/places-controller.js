@@ -1,6 +1,7 @@
 const bodyParser = require("body-parser");
 const { validationResult } = require("express-validator");
 const { DUMMY_PLACES } = require("../data/data");
+const Place = require("../models/place");
 
 const HttpError = require("../models/http-error");
 
@@ -28,23 +29,30 @@ const getPlaceById = (request, response, next) => {
   response.json({ filtered });
 };
 
-const createPlace = (request, response, next) => {
+const createPlace = async (request, response, next) => {
   const errors = validationResult(request);
   if (!errors.isEmpty()) {
     throw new HttpError("invalid inputs", 422);
   }
 
   const { title, description, coordinates, address, creator } = request.body;
-  const createdPlace = {
+  const createdPlace = new Place({
     title,
     description,
-    location: coordinates,
+    location: { lat: coordinates, long: coordinates },
+    image:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/L%C3%A5da_-_Livrustkammaren_-_107142.tif/lossy-page1-1024px-L%C3%A5da_-_Livrustkammaren_-_107142.tif.jpg",
     address,
     creator,
-  };
+  });
 
-  DUMMY_PLACES.push(createdPlace);
-  response.status(201).json({ place: createdPlace });
+  try {
+    await createdPlace.save();
+    response.status(201).json({ place: createdPlace });
+  } catch (error) {
+    const err = new HttpError("creating place failed, try again!", 500);
+    return next(error);
+  }
 };
 
 const updatePlace = (request, response, next) => {
